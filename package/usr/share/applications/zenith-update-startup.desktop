@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Проверка обновлений Zenith OS
+Exec=sh -c 'sleep 20; python3 /usr/local/bin/np300e5x-updater --startup'
+Terminal=false
+X-GNOME-Autostart-enabled=true

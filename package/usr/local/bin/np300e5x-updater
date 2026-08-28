@@ -1,0 +1,224 @@
+#!/usr/bin/env python3
+import hashlib, json, os, shutil, subprocess, tarfile, tempfile, threading, urllib.request, urllib.error, sys
+from pathlib import Path
+try:
+    import tkinter as tk
+    from tkinter import ttk, messagebox
+except Exception:
+    tk = None
+
+OWNER = "K8-gh"
+REPO = "Zenith-OS"
+API = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
+LOCAL = Path("/etc/np300e5x/version")
+CACHE = Path("/var/cache/np300e5x-updater")
+BACKUP = Path.home() / ".local/state/zenith-os/backups"
+
+
+def version_key(value):
+    return tuple(int(x) if x.isdigit() else 0 for x in value.lstrip("v").split("."))
+
+
+def local_version():
+    try:
+        return LOCAL.read_text(encoding="utf-8").strip() or "0.0.0"
+    except OSError:
+        return "0.0.0"
+
+
+def get_release():
+    req = urllib.request.Request(API, headers={"Accept": "application/vnd.github+json", "User-Agent": "Zenith-OS-Updater"})
+    with urllib.request.urlopen(req, timeout=20) as response:
+        return json.load(response)
+
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def download_release(release):
+    assets = release.get("assets", [])
+    asset = next((a for a in assets if a.get("name", "").endswith(".tar.gz")), None)
+    if not asset:
+        raise RuntimeError("В релизе нет подписанного пакета .tar.gz")
+    expected = next((a for a in assets if a.get("name") == asset["name"] + ".sha256"), None)
+    if not expected:
+        raise RuntimeError("В релизе отсутствует файл контрольной суммы")
+    CACHE.mkdir(mode=0o755, parents=True, exist_ok=True)
+    archive = CACHE / asset["name"]
+    checksum_file = CACHE / expected["name"]
+    for url, destination in ((asset["browser_download_url"], archive), (expected["browser_download_url"], checksum_file)):
+        request = urllib.request.Request(url, headers={"User-Agent": "Zenith-OS-Updater"})
+        with urllib.request.urlopen(request, timeout=60) as source, open(destination, "wb") as target:
+            shutil.copyfileobj(source, target)
+    expected_hash = checksum_file.read_text(encoding="utf-8").split()[0].lower()
+    actual_hash = sha256(archive)
+    if actual_hash != expected_hash:
+        archive.unlink(missing_ok=True)
+        raise RuntimeError("Проверка SHA-256 не пройдена; установка отменена")
+    return archive
+
+
+def snapshot_paths(destination):
+    paths = [LOCAL, Path('/usr/local/bin/np300e5x-updater'), Path('/usr/local/bin/zenith-menu'), Path('/usr/local/bin/zenith-welcome'), Path('/usr/share/applications/zenith-menu.desktop'), Path('/usr/share/applications/zenith-welcome.desktop'), Path('/usr/share/applications/zenith-update-startup.desktop')]
+    for path in paths:
+        if path.exists() and path.is_file():
+            relative = Path(str(path).lstrip('/'))
+            target = destination / relative
+            target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            shutil.copy2(path, target)
+
+
+def restore_snapshot(snapshot):
+    for source in snapshot.rglob('*'):
+        if source.is_file():
+            relative = source.relative_to(snapshot)
+            target = Path('/') / relative
+            subprocess.run(["sudo", "mkdir", "-p", str(target.parent)], check=True)
+            subprocess.run(["sudo", "cp", "-p", str(source), str(target)], check=True)
+
+
+def latest_snapshot():
+    candidates = sorted((p for p in BACKUP.iterdir() if p.is_dir()), reverse=True) if BACKUP.exists() else []
+    return candidates[0] if candidates else None
+
+
+def rollback_latest():
+    snapshot = latest_snapshot()
+    if not snapshot:
+        raise RuntimeError('Резервная копия для отката не найдена')
+    restore_snapshot(snapshot)
+
+
+def install_archive(archive):
+    BACKUP.mkdir(mode=0o700, parents=True, exist_ok=True)
+    stamp = subprocess.check_output(["date", "+%Y%m%d-%H%M%S"], text=True).strip()
+    backup = BACKUP / stamp
+    backup.mkdir(mode=0o700)
+    snapshot_paths(backup)
+    extract = Path(tempfile.mkdtemp(prefix="np300e5x-update-"))
+    try:
+        with tarfile.open(archive, "r:gz") as tar:
+            for member in tar.getmembers():
+                target = (extract / member.name).resolve()
+                root_path = extract.resolve()
+                if target != root_path and not str(target).startswith(str(root_path) + os.sep):
+                    raise RuntimeError("Опасный путь в пакете обновления")
+            tar.extractall(extract)
+        script = extract / "install.sh"
+        if not script.exists():
+            raise RuntimeError("В пакете нет install.sh")
+        subprocess.run(["sudo", "bash", str(script)], check=True)
+    except Exception:
+        try:
+            restore_snapshot(backup)
+        except Exception:
+            pass
+        messagebox.showerror("Обновление отменено", "Пакет не установлен. Резервная копия сохранена.")
+        raise
+    finally:
+        shutil.rmtree(extract, ignore_errors=True)
+
+
+def startup_check():
+    try:
+        release = get_release()
+        if version_key(release.get('tag_name', '0.0.0')) > version_key(local_version()):
+            try:
+                subprocess.Popen(['notify-send', 'Zenith OS', f'Найдено обновление {release.get("tag_name")}', 'Откроется окно обновления'])
+            except Exception:
+                pass
+            subprocess.Popen([sys.executable, __file__], start_new_session=True)
+    except Exception:
+        pass
+
+
+def run_gui():
+    root = tk.Tk()
+    root.title("Обновления Zenith OS")
+    root.geometry("680x470")
+    root.minsize(600, 400)
+    style = ttk.Style(root)
+    style.configure("Title.TLabel", font=("DejaVu Sans", 18, "bold"))
+    ttk.Label(root, text="Обновления Zenith OS", style="Title.TLabel").pack(anchor="w", padx=24, pady=(22, 2))
+    ttk.Label(root, text="Проверка GitHub Releases для Debian-системы", foreground="#526170").pack(anchor="w", padx=24)
+    status = tk.StringVar(value="Готово к проверке")
+    version = tk.StringVar(value=f"Установлена версия: {local_version()}")
+    ttk.Label(root, textvariable=version).pack(anchor="w", padx=24, pady=(24, 4))
+    text = tk.Text(root, height=13, wrap="word", state="disabled", bg="#f5f7fa", relief="flat")
+    text.pack(fill="both", expand=True, padx=24, pady=8)
+    buttons = ttk.Frame(root)
+    buttons.pack(fill="x", padx=24, pady=18)
+    check = ttk.Button(buttons, text="Проверить обновления")
+    check.pack(side="left")
+    install = ttk.Button(buttons, text="Скачать и установить", state="disabled")
+    install.pack(side="left", padx=12)
+    rollback = ttk.Button(buttons, text="Откатить последнюю версию")
+    rollback.pack(side="left")
+    ttk.Label(buttons, textvariable=status).pack(side="right")
+    state = {"release": None, "archive": None}
+
+    def log(message):
+        text.configure(state="normal")
+        text.delete("1.0", "end")
+        text.insert("end", message)
+        text.configure(state="disabled")
+
+    def check_worker():
+        try:
+            release = get_release()
+            latest = release.get("tag_name", "0.0.0")
+            current = local_version()
+            notes = release.get("body", "Изменения не указаны").strip()
+            state["release"] = release
+            if version_key(latest) <= version_key(current):
+                root.after(0, lambda: (status.set("Обновлений нет"), log(f"Установлена последняя версия {current}.\n\nПроверено: {latest}"), install.configure(state="disabled")))
+            else:
+                root.after(0, lambda: (status.set("Найдено обновление"), log(f"Доступна версия: {latest}\nУстановлена версия: {current}\n\nИзменения:\n{notes}"), install.configure(state="normal")))
+        except Exception as exc:
+            root.after(0, lambda: (status.set("Ошибка проверки"), log(f"Не удалось проверить обновления:\n{exc}")))
+
+    def check_updates():
+        check.configure(state="disabled")
+        status.set("Проверяю GitHub Releases…")
+        threading.Thread(target=lambda: (check_worker(), root.after(0, lambda: check.configure(state="normal"))), daemon=True).start()
+
+    def install_worker():
+        release = state["release"]
+        if not release:
+            return
+        if not messagebox.askyesno("Подтверждение", "Создать резервную копию и установить найденное обновление?"):
+            return
+        try:
+            status.set("Скачиваю и проверяю пакет…")
+            archive = download_release(release)
+            status.set("Создаю резервную копию и устанавливаю…")
+            install_archive(archive)
+            root.after(0, lambda: (status.set("Готово"), messagebox.showinfo("Обновление завершено", "Обновление установлено. Перезагрузка не требуется."), install.configure(state="disabled")))
+        except Exception as exc:
+            root.after(0, lambda: (status.set("Установка отменена"), log(f"Ошибка обновления:\n{exc}")))
+
+    def do_rollback():
+        if not messagebox.askyesno('Откат обновления', 'Вернуть последнюю сохранённую версию?'):
+            return
+        try:
+            rollback_latest(); status.set('Откат выполнен'); messagebox.showinfo('Готово', 'Предыдущая версия восстановлена.')
+        except Exception as exc:
+            messagebox.showerror('Откат невозможен', str(exc))
+    check.configure(command=check_updates)
+    install.configure(command=lambda: threading.Thread(target=install_worker, daemon=True).start())
+    rollback.configure(command=do_rollback)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    if '--startup' in sys.argv:
+        startup_check()
+    elif tk is None:
+        raise SystemExit("Для графического режима установите python3-tk")
+    else:
+        run_gui()

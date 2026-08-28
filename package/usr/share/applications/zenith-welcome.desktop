@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Добро пожаловать в Zenith OS
+Exec=python3 /usr/local/bin/zenith-welcome --startup
+Terminal=false
+X-GNOME-Autostart-enabled=true

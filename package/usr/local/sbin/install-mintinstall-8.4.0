@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+BASE='https://packages.linuxmint.com/pool/main'
+MINT_COMMON_URL="$BASE/m/mint-common/mint-common_2.5.2_all.deb"
+MINTINSTALL_URL="$BASE/m/mintinstall/mintinstall_8.4.0_all.deb"
+sudo apt-get update
+sudo apt-get install -y python3 python3-bs4 python3-gi-cairo python3-lxml python3-setproctitle python3-xapp gir1.2-gdkpixbuf-2.0 gir1.2-glib-2.0 gir1.2-gtk-3.0 gir1.2-xapp-1.0 libgtk3-perl app-install-data gir1.2-flatpak-1.0 flatpak xdg-desktop-portal-gtk ca-certificates curl
+curl --fail --retry 3 --retry-delay 3 --proto '=https' --tlsv1.2 "$MINT_COMMON_URL" -o "$TMP/mint-common.deb"
+curl --fail --retry 3 --retry-delay 3 --proto '=https' --tlsv1.2 "$MINTINSTALL_URL" -o "$TMP/mintinstall.deb"
+dpkg-deb -f "$TMP/mint-common.deb" Package Version | grep -q '^mint-common$'
+dpkg-deb -f "$TMP/mintinstall.deb" Package Version | grep -q '^mintinstall$'
+dpkg-deb -f "$TMP/mintinstall.deb" Version | grep -q '^8\.4\.0$'
+sudo dpkg -i "$TMP/mint-common.deb" "$TMP/mintinstall.deb" || sudo apt-get -f install -y
+flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
+sudo update-desktop-database /usr/share/applications 2>/dev/null || true
+printf '%s\n' 'mintinstall 8.4.0 установлен. Открывайте его через «Центр приложений Mint».'
