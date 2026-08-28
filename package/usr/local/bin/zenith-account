@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+import base64, hashlib, json, os, secrets, tkinter as tk
+from tkinter import messagebox
+
+DATA_DIR = os.path.expanduser('~/.config/zenith-os')
+DATA_FILE = os.path.join(DATA_DIR, 'account.json')
+
+def load():
+    try:
+        with open(DATA_FILE, encoding='utf-8') as f: return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError): return None
+
+def save(name, password):
+    os.makedirs(DATA_DIR, mode=0o700, exist_ok=True)
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 240000)
+    payload = {'product': 'Zenith OS', 'username': name, 'salt': base64.b64encode(salt).decode(), 'password_hash': base64.b64encode(digest).decode()}
+    with open(DATA_FILE, 'w', encoding='utf-8') as f: json.dump(payload, f, ensure_ascii=False, indent=2)
+    os.chmod(DATA_FILE, 0o600)
+
+def verify(record, password):
+    try:
+        salt = base64.b64decode(record['salt']); expected = base64.b64decode(record['password_hash'])
+        actual = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 240000)
+        return secrets.compare_digest(actual, expected)
+    except (KeyError, ValueError): return False
+
+class Account(tk.Tk):
+    def __init__(self):
+        super().__init__(); self.title('Аккаунт Zenith OS'); self.geometry('470x360'); self.resizable(False, False); self.configure(bg='#202124'); self.record=load(); self.mode='login' if self.record else 'create'; self.build()
+    def build(self):
+        for w in self.winfo_children(): w.destroy()
+        tk.Label(self, text='Zenith OS', fg='#8ab4f8', bg='#202124', font=('DejaVu Sans', 24, 'bold')).pack(pady=(24,4))
+        title = 'Вход в локальный аккаунт' if self.mode=='login' else 'Создание локального аккаунта'
+        tk.Label(self, text=title, fg='#f1f3f4', bg='#202124', font=('DejaVu Sans', 14)).pack(pady=4)
+        tk.Label(self, text='Аккаунт действует только внутри приложений Zenith OS.\nСоздавать его необязательно.', fg='#bdc1c6', bg='#202124', justify='center').pack(pady=(2,16))
+        form=tk.Frame(self,bg='#202124'); form.pack()
+        tk.Label(form,text='Имя профиля',fg='#e8eaed',bg='#202124').grid(row=0,column=0,sticky='w',pady=6)
+        self.name=tk.Entry(form,bg='#303134',fg='white',insertbackground='white',relief='flat',width=29); self.name.grid(row=0,column=1,pady=6,ipady=5)
+        tk.Label(form,text='Пароль',fg='#e8eaed',bg='#202124').grid(row=1,column=0,sticky='w',pady=6)
+        self.password=tk.Entry(form,show='•',bg='#303134',fg='white',insertbackground='white',relief='flat',width=29); self.password.grid(row=1,column=1,pady=6,ipady=5)
+        if self.mode=='create':
+            tk.Label(form,text='Повтор пароля',fg='#e8eaed',bg='#202124').grid(row=2,column=0,sticky='w',pady=6)
+            self.confirm=tk.Entry(form,show='•',bg='#303134',fg='white',insertbackground='white',relief='flat',width=29); self.confirm.grid(row=2,column=1,pady=6,ipady=5)
+        tk.Button(self,text='Создать аккаунт' if self.mode=='create' else 'Войти',command=self.submit,bg='#1a73e8',fg='white',relief='flat',padx=24,pady=8).pack(pady=18)
+        if self.mode=='login': tk.Button(self,text='Удалить локальный аккаунт',command=self.delete,bg='#202124',fg='#f28b82',relief='flat').pack()
+        tk.Button(self,text='Продолжить без аккаунта',command=self.destroy,bg='#202124',fg='#9aa0a6',relief='flat').pack(pady=8)
+    def submit(self):
+        name=self.name.get().strip(); password=self.password.get()
+        if not name or len(password)<6: messagebox.showerror('Проверка','Укажи имя и пароль не короче 6 символов.'); return
+        if self.mode=='create':
+            if password != self.confirm.get(): messagebox.showerror('Проверка','Пароли не совпадают.'); return
+            save(name,password); messagebox.showinfo('Готово','Локальный аккаунт создан. Он не отправляется в интернет.'); self.destroy()
+        elif verify(self.record,password) and name == self.record.get('username'):
+            messagebox.showinfo('Вход выполнен',f'Добро пожаловать, {name}!'); self.destroy()
+        else: messagebox.showerror('Ошибка входа','Неверное имя профиля или пароль.')
+    def delete(self):
+        if messagebox.askyesno('Удалить аккаунт','Удалить локальный профиль Zenith OS?'):
+            try: os.remove(DATA_FILE)
+            except OSError: pass
+            self.record=None; self.mode='create'; self.build()
+
+if __name__=='__main__': Account().mainloop()

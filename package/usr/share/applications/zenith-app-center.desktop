@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Zenith App Center
+Name[ru]=Центр приложений Zenith
+Comment=Каталог приложений с категориями и поиском
+Comment[ru]=Каталог приложений с категориями и поиском
+Exec=/usr/local/bin/zenith-app-center
+Icon=system-software-install
+Terminal=false
+Categories=System;PackageManager;

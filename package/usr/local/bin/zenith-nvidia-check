@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -u
+printf '%s\n' 'Zenith OS — проверка NVIDIA GeForce GT 620M'
+printf '%s\n\n' 'Основной безопасный режим: Intel HD 3000 (i915). NVIDIA не включается принудительно.'
+if command -v lspci >/dev/null 2>&1; then
+  lspci -nnk | grep -A3 -Ei 'vga|3d|display|nvidia|intel' || true
+fi
+printf '\nТекущий драйвер ядра:\n'
+lsmod | grep -E 'nouveau|nvidia|i915' || printf '%s\n' 'Модуль NVIDIA/nouveau сейчас не загружен.'
+printf '\nДля этой старой видеокарты сначала проверяйте nouveau. Legacy NVIDIA 390xx не устанавливается автоматически: он может быть несовместим с ядром и вызвать чёрный экран.\n'
+printf '%s\n' 'После изменения драйвера создайте снимок Timeshift и держите режим nomodeset в GRUB для восстановления.'
+read -r -p 'Нажмите Enter для закрытия...'

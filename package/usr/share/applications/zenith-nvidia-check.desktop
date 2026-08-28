@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Проверка NVIDIA GT 620M
+Name[ru]=Проверка NVIDIA GT 620M
+Comment=Диагностика графики без принудительной смены драйвера
+Exec=xfce4-terminal --title="NVIDIA GT 620M" -e /usr/local/bin/zenith-nvidia-check
+Icon=video-display
+Terminal=false
+Categories=Settings;System;
