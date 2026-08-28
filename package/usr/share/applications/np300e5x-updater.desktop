@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Обновления Zenith OS
+Name[ru]=Обновления Zenith OS
+Comment=Проверить и установить обновления Zenith OS
+Comment[ru]=Проверить и установить обновления Zenith OS
+Exec=python3 /usr/local/bin/np300e5x-updater
+Icon=system-software-update
+Terminal=false
+Categories=System;Settings;

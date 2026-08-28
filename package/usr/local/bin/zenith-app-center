@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+import subprocess
+import tkinter as tk
+from tkinter import messagebox
+
+APPS = [
+    ('Интернет', 'Discord', 'Голос, видео и чаты', 'flatpak install -y flathub com.discordapp.Discord'),
+    ('Интернет', 'Google Chrome', 'Официальный браузер Google для Debian', "sh -c \"tmp=\\$(mktemp); curl -fL --proto '=https' --tlsv1.2 https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o \\$tmp && sudo apt-get install -y \\$tmp; rm -f \\$tmp\""),
+    ('Интернет', 'Telegram Desktop', 'Официальный клиент Telegram', 'flatpak install -y flathub org.telegram.desktop'),
+    ('Приватность', 'Tor Browser', 'Запускатель Tor Browser из Debian', 'sudo apt-get update && sudo apt-get install -y torbrowser-launcher'),
+    ('Офис', 'LibreOffice', 'Офисный пакет', 'sudo apt-get install -y libreoffice libreoffice-l10n-ru'),
+    ('Мультимедиа', 'VLC', 'Видео и музыка', 'sudo apt-get install -y vlc'),
+    ('Графика', 'GIMP', 'Редактор изображений', 'sudo apt-get install -y gimp'),
+    ('Система', 'Synaptic', 'Расширенное управление пакетами', 'sudo apt-get install -y synaptic'),
+    ('Система', 'Timeshift', 'Снимки и восстановление', 'sudo apt-get install -y timeshift'),
+    ('Файлы', '7-Zip / File Roller', 'Архивы ZIP, 7z, RAR и TAR', 'sudo apt-get install -y p7zip-full file-roller unrar-free'),
+    ('Файлы', 'GParted', 'Разметка и проверка дисков', 'sudo apt-get install -y gparted'),
+    ('Файлы', 'FileZilla', 'FTP/SFTP-клиент', 'sudo apt-get install -y filezilla'),
+    ('Безопасность', 'KeePassXC', 'Локальный менеджер паролей', 'sudo apt-get install -y keepassxc'),
+    ('Загрузка', 'qBittorrent', 'Клиент загрузок BitTorrent', 'sudo apt-get install -y qbittorrent'),
+    ('Удалённый доступ', 'Remmina', 'RDP, SSH, VNC и SPICE', 'sudo apt-get install -y remmina'),
+    ('Фото и видео', 'Flameshot', 'Скриншоты с быстрым редактированием', 'sudo apt-get install -y flameshot'),
+    ('Фото и видео', 'HandBrake', 'Конвертер видео', 'sudo apt-get install -y handbrake'),
+    ('Разработка', 'Geany', 'Лёгкий редактор кода', 'sudo apt-get install -y geany'),
+    ('Фото и видео', 'OBS Studio', 'Запись экрана и трансляции; рекомендуется как необязательное приложение', 'flatpak install -y flathub com.obsproject.Studio'),
+    ('Фото и видео', 'Kdenlive', 'Монтаж видео; рекомендуется как необязательное приложение', 'sudo apt-get install -y kdenlive'),
+]
+
+class Center(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title('Zenith App Center')
+        self.geometry('920x620')
+        self.configure(bg='#202124')
+        self.category = tk.StringVar(value='Все')
+        self.query = tk.StringVar()
+        self._build()
+        self.render()
+
+    def _build(self):
+        top = tk.Frame(self, bg='#202124', height=76); top.pack(fill='x')
+        tk.Label(top, text='Zenith App Center', fg='#f1f3f4', bg='#202124', font=('DejaVu Sans', 20, 'bold')).pack(side='left', padx=24, pady=20)
+        search = tk.Entry(top, textvariable=self.query, bg='#303134', fg='#f1f3f4', insertbackground='white', relief='flat', font=('DejaVu Sans', 12))
+        search.pack(side='right', padx=24, ipady=9, ipadx=12, fill='x', expand=True); search.bind('<KeyRelease>', lambda e: self.render())
+        body = tk.Frame(self, bg='#202124'); body.pack(fill='both', expand=True)
+        nav = tk.Frame(body, bg='#25272a', width=190); nav.pack(side='left', fill='y'); nav.pack_propagate(False)
+        tk.Label(nav, text='КАТЕГОРИИ', fg='#9aa0a6', bg='#25272a', anchor='w').pack(fill='x', padx=18, pady=(24,8))
+        cats = ['Все', 'Интернет', 'Офис', 'Мультимедиа', 'Графика', 'Приватность', 'Система', 'Файлы', 'Безопасность', 'Загрузка', 'Удалённый доступ', 'Фото и видео', 'Разработка']
+        for c in cats:
+            tk.Radiobutton(nav, text=c, value=c, variable=self.category, command=self.render, bg='#25272a', fg='#e8eaed', selectcolor='#3c4043', activebackground='#3c4043', activeforeground='white', anchor='w', indicatoron=False, padx=18, pady=8).pack(fill='x', padx=8, pady=2)
+        self.list = tk.Frame(body, bg='#202124'); self.list.pack(side='left', fill='both', expand=True, padx=22, pady=18)
+
+    def render(self):
+        for w in self.list.winfo_children(): w.destroy()
+        q = self.query.get().lower().strip(); cat = self.category.get()
+        items = [a for a in APPS if (cat == 'Все' or a[0] == cat) and (not q or q in a[1].lower() or q in a[2].lower())]
+        if not items:
+            tk.Label(self.list, text='Ничего не найдено', fg='#bdc1c6', bg='#202124', font=('DejaVu Sans', 14)).pack(pady=40); return
+        for category, name, desc, command in items:
+            card = tk.Frame(self.list, bg='#292a2d', padx=16, pady=12); card.pack(fill='x', pady=6)
+            tk.Label(card, text=name, fg='#f1f3f4', bg='#292a2d', font=('DejaVu Sans', 13, 'bold')).pack(anchor='w')
+            tk.Label(card, text=f'{category}  •  {desc}', fg='#bdc1c6', bg='#292a2d', font=('DejaVu Sans', 10)).pack(anchor='w', pady=(4,8))
+            tk.Button(card, text='Установить', command=lambda cmd=command, n=name: self.install(n, cmd), bg='#1a73e8', fg='white', relief='flat', padx=14, pady=5).pack(anchor='e')
+
+    def install(self, name, command):
+        if not messagebox.askyesno('Установка приложения', f'Установить {name}?\n\nИсточник и команда будут показаны в терминале.'):
+            return
+        subprocess.Popen(['xfce4-terminal', '--title', f'Установка: {name}', '--command', f'bash -lc "{command}; echo; read -p \'Нажмите Enter для закрытия...\'"'])
+
+if __name__ == '__main__':
+    Center().mainloop()

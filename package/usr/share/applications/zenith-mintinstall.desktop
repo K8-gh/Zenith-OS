@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Центр приложений Mint 8.4.0
+Name[ru]=Центр приложений Mint 8.4.0
+Comment=Менеджер приложений Linux Mint с защитой от зависания кэша
+Comment[ru]=Менеджер приложений Linux Mint с защитой от зависания кэша
+Exec=/usr/local/bin/zenith-mintinstall
+Icon=system-software-install
+Terminal=false
+Categories=System;PackageManager;

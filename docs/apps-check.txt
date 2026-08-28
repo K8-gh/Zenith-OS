@@ -1,0 +1,30 @@
+ПРОВЕРКА СОСТАВА ПРИЛОЖЕНИЙ
+Дата: 2026-08-28 10:14:07Z
+
+Заявленные установочные пакеты:
+task-xfce-desktoplightdmlightdm-gtk-greeter
+firefox-esrfirefox-esr-l10 -ru
+ etwork-ma ager etwork-ma ager-g omemodemma ager
+bluezbluema rfkill
+firmware-li uxfirmware-li ux- o freefirmware-atherosfirmware-iwlwifi
+firmware-realtekfirmware-brcm80211
+mesa-utilsmesa-vulka -driversxserver-xorg-video-i tel
+pavuco trolpipewirepipewire-pulsewireplumber
+cupssystem-co fig-pri tersimple-sca 
+gufwsy apticgdebitimeshift
+u zipp7zip-fullcurlwgetgitvlcffmpegwireguard-toolspytho 3
+thermaldtlppowertophtopi xilm-se sors
+fo ts-liberatio fo ts- oto-corefo ts- oto-cjk
+sy aptic
+
+
+
+Приложения, которые устанавливаются скриптом:
+Firefox ESR (русский пакет), VLC, Synaptic, GDebi, Timeshift, Gufw, Blueman, Pavucontrol, system-config-printer, Simple Scan, htop, inxi, Powertop, hide.me VPN.
+
+Приложения только отображаются в UI-макете, но не являются установленными в песочнице:
+Проводник файлов, Firefox ESR, Synaptic, hide.me VPN, VLC, Центр управления.
+
+Тест загрузки дополнительного пакета:
+E: Unable to locate package htop
+Результат: загрузка тестового пакета не выполнена в текущей Ubuntu-песочнице; это не означает проблему в Debian ISO.

@@ -1,0 +1,24 @@
+#!/bin/sh
+set -u
+if ! command -v mintinstall >/dev/null 2>&1; then
+  if command -v zenity >/dev/null 2>&1; then
+    zenity --question --title='Центр приложений Mint' --text='mintinstall 8.4.0 ещё не установлен. Установить его сейчас из официального пакета Linux Mint?' || exit 0
+  fi
+  exec xfce4-terminal --command='sudo /usr/local/sbin/install-mintinstall-8.4.0'
+  exit 0
+fi
+CACHE_DIRS="$HOME/.cache/mintinstall $HOME/.cache/app-info $HOME/.cache/gnome-software"
+run_mint() { timeout --signal=TERM --kill-after=10s 90s mintinstall; }
+run_mint
+status=$?
+if [ "$status" -eq 124 ]; then
+  for d in $CACHE_DIRS; do rm -rf "$d"; done
+  timeout --signal=TERM --kill-after=10s 45s flatpak update --appstream --noninteractive >/dev/null 2>&1 || true
+  if command -v notify-send >/dev/null 2>&1; then notify-send 'Центр приложений Mint' 'Кэш завис и был очищен. Повторный запуск выполняется.'; fi
+  run_mint
+  status=$?
+fi
+if [ "$status" -eq 124 ]; then
+  if command -v zenity >/dev/null 2>&1; then zenity --error --title='Центр приложений Mint' --text='Менеджер не ответил за 90 секунд. Кэш очищен. Откройте «Центр приложений Debian» или Synaptic.'; fi
+fi
+exit 0
