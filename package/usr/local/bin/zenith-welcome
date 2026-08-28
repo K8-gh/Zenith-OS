@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+import json, os, subprocess, tkinter as tk, sys
+from pathlib import Path
+from tkinter import messagebox
+CONFIG = Path.home()/'.config/zenith-os/welcome.json'
+
+def main():
+    if '--startup' in sys.argv and CONFIG.exists():
+        try:
+            if not json.loads(CONFIG.read_text(encoding='utf-8')).get('show_on_startup', True):
+                return
+        except Exception:
+            pass
+    CONFIG.parent.mkdir(parents=True, exist_ok=True)
+    root = tk.Tk(); root.title('Добро пожаловать в Zenith OS'); root.geometry('620x430'); root.resizable(False, False)
+    root.configure(bg='#f4f7fb')
+    tk.Label(root, text='Добро пожаловать в Zenith OS', bg='#176caf', fg='white', font=('DejaVu Sans', 23, 'bold'), pady=22).pack(fill='x')
+    tk.Label(root, text='Привычный рабочий стол, лёгкая система и полный контроль настроек', bg='#f4f7fb', fg='#33495f', font=('DejaVu Sans', 12)).pack(pady=(26,8))
+    text = ('Начните работу с нижней панели и меню «Пуск».\n\n'
+            'Центр приложений устанавливает программы, «Обновления Zenith OS» проверяет GitHub Releases,\n'
+            'а Timeshift помогает вернуть систему после неудачной настройки или обновления.')
+    tk.Label(root, text=text, bg='#f4f7fb', fg='#53677b', font=('DejaVu Sans', 11), justify='left').pack(padx=38, pady=12)
+    keep = tk.BooleanVar(value=True)
+    tk.Checkbutton(root, text='Открывать это окно при каждом запуске', variable=keep, bg='#f4f7fb', fg='#203246', activebackground='#f4f7fb', font=('DejaVu Sans', 11)).pack(anchor='w', padx=40, pady=12)
+    def close():
+        CONFIG.write_text(json.dumps({'show_on_startup': bool(keep.get())}, ensure_ascii=False), encoding='utf-8')
+        root.destroy()
+    def open_settings():
+        subprocess.Popen('xfce4-settings-manager', shell=True); close()
+    buttons = tk.Frame(root, bg='#f4f7fb'); buttons.pack(side='bottom', pady=28)
+    tk.Button(buttons, text='Настроить систему', command=open_settings, bg='#e2edf6', fg='#185d8e', relief='flat', padx=16, pady=9).pack(side='left', padx=8)
+    tk.Button(buttons, text='Начать работу', command=close, bg='#176caf', fg='white', relief='flat', padx=24, pady=9).pack(side='left', padx=8)
+    root.protocol('WM_DELETE_WINDOW', close); root.mainloop()
+if __name__ == '__main__': main()
