@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Аккаунт Zenith OS
+Comment=Необязательный локальный профиль без внешней синхронизации
+Exec=/usr/local/bin/zenith-account
+Icon=system-users
+Terminal=false
+Categories=Settings;System;

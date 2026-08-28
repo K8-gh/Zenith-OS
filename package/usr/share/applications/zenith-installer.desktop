@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Установить Zenith OS
+Name[ru]=Установить Zenith OS
+Comment=Установка рядом с Windows или чистая установка
+Comment[ru]=Установка рядом с Windows или чистая установка
+Exec=python3 /usr/local/bin/zenith-installer
+Icon=system-software-install
+Terminal=false
+Categories=System;Settings;

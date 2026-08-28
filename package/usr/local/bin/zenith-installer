@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+import subprocess, tkinter as tk
+from tkinter import messagebox
+
+def main():
+    root = tk.Tk(); root.title('Установка Zenith OS'); root.geometry('700x440'); root.resizable(False, False); root.configure(bg='#f4f7fb')
+    tk.Label(root, text='Установить Zenith OS', bg='#176caf', fg='white', font=('DejaVu Sans', 23, 'bold'), pady=22).pack(fill='x')
+    tk.Label(root, text='Перед установкой обязательно сделайте резервную копию личных файлов.', bg='#f4f7fb', fg='#8a3c20', font=('DejaVu Sans', 11, 'bold')).pack(pady=(22, 12))
+    tk.Label(root, text='Выберите способ установки:', bg='#f4f7fb', fg='#203246', font=('DejaVu Sans', 14)).pack(pady=8)
+    frame = tk.Frame(root, bg='#f4f7fb'); frame.pack(fill='x', padx=28, pady=15)
+    def launch(mode):
+        if mode == 'erase':
+            ok = messagebox.askyesno('Удалить всё с диска?', 'Этот вариант удалит Windows, документы, программы и разделы со всего выбранного диска.\n\nПродолжить только если резервная копия проверена?', icon='warning')
+            if not ok: return
+        messagebox.showinfo('Следующий шаг', 'Откроется установщик Calamares. В нём ещё раз проверьте диск и режим разметки перед нажатием «Установить».')
+        subprocess.Popen(['calamares'])
+        root.destroy()
+    tk.Button(frame, text='Установить рядом с Windows\nс сохранением Windows', command=lambda: launch('alongside'), bg='#287fba', fg='white', relief='flat', font=('DejaVu Sans', 12, 'bold'), padx=14, pady=18).pack(side='left', expand=True, fill='both', padx=8)
+    tk.Button(frame, text='Чистая установка\nстереть выбранный диск', command=lambda: launch('erase'), bg='#b84c3b', fg='white', relief='flat', font=('DejaVu Sans', 12, 'bold'), padx=14, pady=18).pack(side='left', expand=True, fill='both', padx=8)
+    tk.Label(root, text='Для режима рядом с Windows отключите быстрый запуск Windows и проверьте резервную копию.\nУстановщик покажет фактические диски и разделы перед записью.', bg='#f4f7fb', fg='#53677b', font=('DejaVu Sans', 10), justify='left').pack(pady=18)
+    tk.Button(root, text='Отмена', command=root.destroy, bg='#e2edf6', fg='#31526e', relief='flat', padx=24, pady=8).pack(side='bottom', pady=18)
+    root.mainloop()
+if __name__ == '__main__': main()
