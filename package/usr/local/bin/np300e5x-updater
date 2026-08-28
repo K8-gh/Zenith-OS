@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import hashlib, json, os, shutil, subprocess, tarfile, tempfile, threading, urllib.request, urllib.error
+import hashlib, json, os, shutil, subprocess, tarfile, tempfile, threading, urllib.request, urllib.error, sys
 from pathlib import Path
 try:
     import tkinter as tk
@@ -12,7 +12,7 @@ REPO = "Zenith-OS"
 API = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
 LOCAL = Path("/etc/np300e5x/version")
 CACHE = Path("/var/cache/np300e5x-updater")
-BACKUP = Path("/var/backups/np300e5x")
+BACKUP = Path.home() / ".local/state/zenith-os/backups"
 
 
 def version_key(value):
@@ -63,13 +63,43 @@ def download_release(release):
     return archive
 
 
+def snapshot_paths(destination):
+    paths = [LOCAL, Path('/usr/local/bin/np300e5x-updater'), Path('/usr/local/bin/zenith-menu'), Path('/usr/local/bin/zenith-welcome'), Path('/usr/share/applications/zenith-menu.desktop'), Path('/usr/share/applications/zenith-welcome.desktop'), Path('/usr/share/applications/zenith-update-startup.desktop')]
+    for path in paths:
+        if path.exists() and path.is_file():
+            relative = Path(str(path).lstrip('/'))
+            target = destination / relative
+            target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            shutil.copy2(path, target)
+
+
+def restore_snapshot(snapshot):
+    for source in snapshot.rglob('*'):
+        if source.is_file():
+            relative = source.relative_to(snapshot)
+            target = Path('/') / relative
+            subprocess.run(["sudo", "mkdir", "-p", str(target.parent)], check=True)
+            subprocess.run(["sudo", "cp", "-p", str(source), str(target)], check=True)
+
+
+def latest_snapshot():
+    candidates = sorted((p for p in BACKUP.iterdir() if p.is_dir()), reverse=True) if BACKUP.exists() else []
+    return candidates[0] if candidates else None
+
+
+def rollback_latest():
+    snapshot = latest_snapshot()
+    if not snapshot:
+        raise RuntimeError('Резервная копия для отката не найдена')
+    restore_snapshot(snapshot)
+
+
 def install_archive(archive):
     BACKUP.mkdir(mode=0o700, parents=True, exist_ok=True)
     stamp = subprocess.check_output(["date", "+%Y%m%d-%H%M%S"], text=True).strip()
     backup = BACKUP / stamp
     backup.mkdir(mode=0o700)
-    if LOCAL.exists():
-        shutil.copy2(LOCAL, backup / "version")
+    snapshot_paths(backup)
     extract = Path(tempfile.mkdtemp(prefix="np300e5x-update-"))
     try:
         with tarfile.open(archive, "r:gz") as tar:
@@ -84,10 +114,27 @@ def install_archive(archive):
             raise RuntimeError("В пакете нет install.sh")
         subprocess.run(["sudo", "bash", str(script)], check=True)
     except Exception:
+        try:
+            restore_snapshot(backup)
+        except Exception:
+            pass
         messagebox.showerror("Обновление отменено", "Пакет не установлен. Резервная копия сохранена.")
         raise
     finally:
         shutil.rmtree(extract, ignore_errors=True)
+
+
+def startup_check():
+    try:
+        release = get_release()
+        if version_key(release.get('tag_name', '0.0.0')) > version_key(local_version()):
+            try:
+                subprocess.Popen(['notify-send', 'Zenith OS', f'Найдено обновление {release.get("tag_name")}', 'Откроется окно обновления'])
+            except Exception:
+                pass
+            subprocess.Popen([sys.executable, __file__], start_new_session=True)
+    except Exception:
+        pass
 
 
 def run_gui():
@@ -110,6 +157,8 @@ def run_gui():
     check.pack(side="left")
     install = ttk.Button(buttons, text="Скачать и установить", state="disabled")
     install.pack(side="left", padx=12)
+    rollback = ttk.Button(buttons, text="Откатить последнюю версию")
+    rollback.pack(side="left")
     ttk.Label(buttons, textvariable=status).pack(side="right")
     state = {"release": None, "archive": None}
 
@@ -153,12 +202,23 @@ def run_gui():
         except Exception as exc:
             root.after(0, lambda: (status.set("Установка отменена"), log(f"Ошибка обновления:\n{exc}")))
 
+    def do_rollback():
+        if not messagebox.askyesno('Откат обновления', 'Вернуть последнюю сохранённую версию?'):
+            return
+        try:
+            rollback_latest(); status.set('Откат выполнен'); messagebox.showinfo('Готово', 'Предыдущая версия восстановлена.')
+        except Exception as exc:
+            messagebox.showerror('Откат невозможен', str(exc))
     check.configure(command=check_updates)
     install.configure(command=lambda: threading.Thread(target=install_worker, daemon=True).start())
+    rollback.configure(command=do_rollback)
     root.mainloop()
 
 
 if __name__ == "__main__":
-    if tk is None:
+    if '--startup' in sys.argv:
+        startup_check()
+    elif tk is None:
         raise SystemExit("Для графического режима установите python3-tk")
-    run_gui()
+    else:
+        run_gui()

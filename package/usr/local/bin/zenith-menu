@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+import os, subprocess, tkinter as tk
+from tkinter import ttk
+
+BG = '#f4f7fb'; BLUE = '#176caf'; TEXT = '#203246'
+APPS = [('Firefox', 'firefox-esr'), ('Файлы', 'thunar'), ('Центр приложений', 'gnome-software'), ('Терминал', 'xfce4-terminal'), ('Настройки', 'xfce4-settings-manager'), ('VLC', 'vlc'), ('LibreOffice', 'libreoffice'), ('Обновления', 'python3 /usr/local/bin/np300e5x-updater')]
+TILES = [('Параметры', 'xfce4-settings-manager', '#247fba'), ('Центр приложений', 'gnome-software', '#3a9b76'), ('Firefox', 'firefox-esr', '#e07c35'), ('Командная строка', 'xfce4-terminal', '#7258a8'), ('Обновления Zenith OS', 'python3 /usr/local/bin/np300e5x-updater', '#2879b8'), ('Снимок экрана', 'xfce4-screenshooter', '#5d9b52')]
+
+def run(command):
+    try: subprocess.Popen(command, shell=True, start_new_session=True)
+    except Exception: pass
+
+def main():
+    root = tk.Tk(); root.overrideredirect(True); root.attributes('-topmost', True)
+    sw, sh = root.winfo_screenwidth(), root.winfo_screenheight(); w, h = 720, 520
+    root.geometry(f'{w}x{h}+16+{sh-57-h}')
+    root.configure(bg=BG); root.bind('<Escape>', lambda e: root.destroy())
+    header = tk.Frame(root, bg=BLUE, height=60); header.pack(fill='x'); header.pack_propagate(False)
+    tk.Label(header, text='Меню Пуск', bg=BLUE, fg='white', font=('DejaVu Sans', 20, 'bold')).pack(side='left', padx=20)
+    tk.Label(header, text='Zenith OS', bg=BLUE, fg='#dceeff', font=('DejaVu Sans', 12)).pack(side='right', padx=20)
+    search = tk.Entry(root, font=('DejaVu Sans', 13), relief='flat', bg='white', fg='#66788a')
+    search.insert(0, 'Поиск приложений и настроек'); search.pack(fill='x', padx=18, pady=14, ipady=9)
+    body = tk.Frame(root, bg=BG); body.pack(fill='both', expand=True, padx=14, pady=(0,14))
+    left = tk.Frame(body, bg='white', width=245); left.pack(side='left', fill='y', padx=(0,12)); left.pack_propagate(False)
+    tk.Label(left, text='Часто используемые', bg='white', fg='#718398', font=('DejaVu Sans', 10, 'bold')).pack(anchor='w', padx=15, pady=(15,8))
+    rows = []
+    for name, cmd in APPS:
+        b = tk.Button(left, text='  '+name, anchor='w', command=lambda c=cmd: (run(c), root.destroy()), bg='white', fg=TEXT, activebackground='#dcecf9', relief='flat', font=('DejaVu Sans', 11))
+        b.pack(fill='x', padx=8, pady=2, ipady=5); rows.append((name.lower(), b))
+    right = tk.Frame(body, bg=BG); right.pack(side='left', fill='both', expand=True)
+    tk.Label(right, text='Закреплённые плитки', bg=BG, fg='#718398', font=('DejaVu Sans', 10, 'bold')).pack(anchor='w', pady=(0,8))
+    grid = tk.Frame(right, bg=BG); grid.pack(fill='both', expand=True)
+    for i, (name, cmd, color) in enumerate(TILES):
+        b = tk.Button(grid, text=name, command=lambda c=cmd: (run(c), root.destroy()), bg=color, fg='white', activebackground=color, relief='flat', font=('DejaVu Sans', 11, 'bold'), wraplength=125, justify='left', anchor='sw')
+        b.grid(row=i//2, column=i%2, sticky='nsew', padx=5, pady=5, ipadx=10, ipady=18)
+    for col in range(2): grid.columnconfigure(col, weight=1)
+    for row in range(3): grid.rowconfigure(row, weight=1)
+    def filter_apps(event=None):
+        q = search.get().lower();
+        for name, b in rows: b.pack_forget() if q and q not in name else b.pack(fill='x', padx=8, pady=2, ipady=5)
+    search.bind('<KeyRelease>', filter_apps); search.bind('<FocusIn>', lambda e: search.delete(0, 'end') if search.get().startswith('Поиск') else None)
+    root.after(50, lambda: search.focus_set()); root.mainloop()
+
+if __name__ == '__main__': main()
