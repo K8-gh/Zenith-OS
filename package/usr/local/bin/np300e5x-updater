@@ -75,7 +75,8 @@ def install_archive(archive):
         with tarfile.open(archive, "r:gz") as tar:
             for member in tar.getmembers():
                 target = (extract / member.name).resolve()
-                if not str(target).startswith(str(extract.resolve()) + os.sep):
+                root_path = extract.resolve()
+                if target != root_path and not str(target).startswith(str(root_path) + os.sep):
                     raise RuntimeError("Опасный путь в пакете обновления")
             tar.extractall(extract)
         script = extract / "install.sh"
