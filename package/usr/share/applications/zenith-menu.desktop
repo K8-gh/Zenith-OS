@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Пуск — Zenith OS
+Name[ru]=Пуск — Zenith OS
+Comment=Меню приложений с плитками и поиском
+Comment[ru]=Меню приложений с плитками и поиском
+Exec=python3 /usr/local/bin/zenith-menu
+Icon=applications-system
+Terminal=false
+Categories=System;Utility;
